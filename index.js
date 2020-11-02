@@ -1,10 +1,15 @@
 const express = require('express')
 const sql = require("mssql");
 var cors = require('cors');
+var bodyParser = require('body-parser');
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./swagger.json');
 const app = express()
 const port = 3000
 
 app.use(cors())
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 var config = {
     user: 'HRUser',
@@ -16,6 +21,11 @@ var config = {
         "enableArithAbort": true
     },
 };
+
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+
 sql.connect(config, function (err) {
     if(err) {console.log(err);}
     
@@ -37,7 +47,13 @@ sql.connect(config, function (err) {
                 res.send(result.recordset)
             })
         } else {
-            res.send('nok')
+            var request = new sql.Request();
+            let script = `select a.*,b.NAME as REGIONNAME from Branches1 a,Regions b where a.REGIONID = b.ID order by a.id`;
+            request.query(script,function (err,result) {
+                if(err) console.log(err);
+                res.send(result.recordset)
+            })
+            // res.send('nok')
         }
     })
 
@@ -92,6 +108,34 @@ sql.connect(config, function (err) {
                 res.send(result.recordset);
             })
         }else{
+            res.send('nok')
+        }
+    })
+
+    app.post('/addRegion', (req,res) => {
+        if(typeof req.body.name !== 'undefined') {
+            var request = new sql.Request();
+            let script = "insert into Regions(NAME) OUTPUT Inserted.ID values(N'"+ req.body.name +"')";
+            request.query(script, (err, result) => {
+                if(err) console.log(err);
+                res.send(result.recordset)
+            })
+        }
+        else  {
+            res.send('nok')
+        }
+    })
+
+    app.post('/deleteRegion', (req,res) => {
+        if(typeof req.body.ID !== 'undefined') {
+            var request = new sql.Request();
+            let script = `update Regions set status = 0 where ID = ${req.body.ID}`;
+            request.query(script, (err, result) => {
+                if(err) console.log(err);
+                res.send('ok')
+            })
+        }
+        else  {
             res.send('nok')
         }
     })
